@@ -1,0 +1,74 @@
+/* File: client/src/App.css */
+
+.app-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 60px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #d9d9d9;
+  flex-shrink: 0;
+}
+
+.header-logo {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #2a9d8f;
+}
+
+.header-title {
+  margin-left: 16px;
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: #595959;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+}
+
+.share-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #fff;
+  background-color: #2a9d8f;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.share-button:hover {
+  background-color: #268e80;
+}
+
+.share-button span {
+  margin-top: -2px;
+}
+
+.main-container {
+  display: flex;
+  flex-grow: 1;
+  padding: 16px;
+  gap: 16px;
+}
+
+.whiteboard-area {
+  flex-grow: 1;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
+  overflow: hidden;
+}
