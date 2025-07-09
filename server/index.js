@@ -6,7 +6,7 @@ import cors from "cors";
 const app = express();
 const server = http.createServer(app);
 
-app.use(cors({ origin: "http://localhost:5173" }));
+app.use(cors({ origin: "https://collabrative-whiteboard-sigma.vercel.app" }));
 
 const io = new Server(server, {
   cors: {
