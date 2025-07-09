@@ -8,12 +8,11 @@ import React, {
 import "./Whiteboard.css";
 
 
-let socket;
-if (typeof window !== "undefined") {
-  const io = require("socket.io-client");
-  const serverUrl = import.meta.env.VITE_SERVER_URL;
-  socket = io(serverUrl);
-}
+import io from "socket.io-client";
+
+
+const serverUrl = import.meta.env.VITE_SERVER_URL;
+const socket = io(serverUrl);
 
 const Whiteboard = forwardRef(
   ({ boardId, color, width, mode, eraserColor }, ref) => {
@@ -27,7 +26,7 @@ const Whiteboard = forwardRef(
         const canvas = canvasRef.current;
         const context = canvas.getContext("2d");
         context.clearRect(0, 0, canvas.width, canvas.height);
-        if (socket) socket.emit("clear", id);
+        socket.emit("clear", id);
       },
     }));
 
@@ -65,30 +64,26 @@ const Whiteboard = forwardRef(
         remoteContext.closePath();
       };
 
-      if (socket) {
-        socket.once("load-history", (history) => {
-          history.forEach((data) => drawFromData(data));
-        });
-        socket.on("clear", () => {
-          if (contextRef.current) {
-            contextRef.current.clearRect(
-              0,
-              0,
-              canvasRef.current.width,
-              canvasRef.current.height
-            );
-          }
-        });
-        socket.on("drawing", (data) => drawFromData(data));
-      }
+      socket.once("load-history", (history) => {
+        history.forEach((data) => drawFromData(data));
+      });
+      socket.on("clear", () => {
+        if (contextRef.current) {
+          contextRef.current.clearRect(
+            0,
+            0,
+            canvasRef.current.width,
+            canvasRef.current.height
+          );
+        }
+      });
+      socket.on("drawing", (data) => drawFromData(data));
 
       return () => {
         window.removeEventListener("resize", resizeCanvas);
-        if (socket) {
-          socket.off("clear");
-          socket.off("drawing");
-          socket.off("load-history");
-        }
+        socket.off("clear");
+        socket.off("drawing");
+        socket.off("load-history");
       };
     }, [eraserColor]);
 
@@ -99,13 +94,11 @@ const Whiteboard = forwardRef(
         return {
           offsetX: event.touches[0].clientX - rect.left,
           offsetY: event.touches[0].clientY - rect.top,
-          nativeEvent: event,
         };
       }
       return {
         offsetX: event.nativeEvent.offsetX,
         offsetY: event.nativeEvent.offsetY,
-        nativeEvent: event.nativeEvent,
       };
     };
 
@@ -136,18 +129,16 @@ const Whiteboard = forwardRef(
       context.lineTo(offsetX, offsetY);
       context.stroke();
 
-      if (socket) {
-        socket.emit("drawing", {
-          boardId,
-          x0: lastPosition.current.x,
-          y0: lastPosition.current.y,
-          x1: offsetX,
-          y1: offsetY,
-          color,
-          width,
-          mode,
-        });
-      }
+      socket.emit("drawing", {
+        boardId,
+        x0: lastPosition.current.x,
+        y0: lastPosition.current.y,
+        x1: offsetX,
+        y1: offsetY,
+        color,
+        width,
+        mode,
+      });
 
       lastPosition.current = { x: offsetX, y: offsetY };
     };
