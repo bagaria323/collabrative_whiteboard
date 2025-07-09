@@ -7,8 +7,16 @@ import React, {
 } from "react";
 import "./Whiteboard.css";
 
+
+let socket;
+if (typeof window !== "undefined") {
+  const io = require("socket.io-client");
+  const serverUrl = import.meta.env.VITE_SERVER_URL;
+  socket = io(serverUrl);
+}
+
 const Whiteboard = forwardRef(
-  ({ socket, boardId, color, width, mode, eraserColor }, ref) => {
+  ({ boardId, color, width, mode, eraserColor }, ref) => {
     const canvasRef = useRef(null);
     const contextRef = useRef(null);
     const [isDrawing, setIsDrawing] = useState(false);
@@ -19,7 +27,7 @@ const Whiteboard = forwardRef(
         const canvas = canvasRef.current;
         const context = canvas.getContext("2d");
         context.clearRect(0, 0, canvas.width, canvas.height);
-        socket.emit("clear", id); // Use the boardId passed from parent
+        if (socket) socket.emit("clear", id);
       },
     }));
 
@@ -43,7 +51,6 @@ const Whiteboard = forwardRef(
       resizeCanvas();
       window.addEventListener("resize", resizeCanvas);
 
-      // --- HISTORY AND REAL-TIME LISTENERS ---
       const drawFromData = (data) => {
         const { x0, y0, x1, y1, color, width, mode } = data;
         const remoteContext = contextRef.current;
@@ -58,34 +65,52 @@ const Whiteboard = forwardRef(
         remoteContext.closePath();
       };
 
-      // Listen for the entire history of the board
-      socket.once("load-history", (history) => {
-        history.forEach((data) => drawFromData(data));
-      });
-
-      socket.on("clear", () => {
-        if (contextRef.current) {
-          contextRef.current.clearRect(
-            0,
-            0,
-            canvasRef.current.width,
-            canvasRef.current.height
-          );
-        }
-      });
-
-      socket.on("drawing", (data) => drawFromData(data));
+      if (socket) {
+        socket.once("load-history", (history) => {
+          history.forEach((data) => drawFromData(data));
+        });
+        socket.on("clear", () => {
+          if (contextRef.current) {
+            contextRef.current.clearRect(
+              0,
+              0,
+              canvasRef.current.width,
+              canvasRef.current.height
+            );
+          }
+        });
+        socket.on("drawing", (data) => drawFromData(data));
+      }
 
       return () => {
         window.removeEventListener("resize", resizeCanvas);
-        socket.off("clear");
-        socket.off("drawing");
-        socket.off("load-history");
+        if (socket) {
+          socket.off("clear");
+          socket.off("drawing");
+          socket.off("load-history");
+        }
       };
     }, [eraserColor]);
 
-    const startDrawing = ({ nativeEvent }) => {
-      const { offsetX, offsetY } = nativeEvent;
+    const getCoordinates = (event) => {
+      const canvas = canvasRef.current;
+      const rect = canvas.getBoundingClientRect();
+      if (event.touches && event.touches.length > 0) {
+        return {
+          offsetX: event.touches[0].clientX - rect.left,
+          offsetY: event.touches[0].clientY - rect.top,
+          nativeEvent: event,
+        };
+      }
+      return {
+        offsetX: event.nativeEvent.offsetX,
+        offsetY: event.nativeEvent.offsetY,
+        nativeEvent: event.nativeEvent,
+      };
+    };
+
+    const startDrawing = (event) => {
+      const { offsetX, offsetY } = getCoordinates(event);
       contextRef.current.beginPath();
       contextRef.current.moveTo(offsetX, offsetY);
       setIsDrawing(true);
@@ -99,27 +124,30 @@ const Whiteboard = forwardRef(
       }
     };
 
-    const draw = ({ nativeEvent }) => {
+    const draw = (event) => {
       if (!isDrawing) return;
-      const { offsetX, offsetY } = nativeEvent;
-      const context = contextRef.current;
+      if (event.preventDefault) event.preventDefault();
 
+      const { offsetX, offsetY } = getCoordinates(event);
+      const context = contextRef.current;
       context.lineWidth = width;
       context.lineCap = "round";
       context.strokeStyle = mode === "erase" ? eraserColor : color;
       context.lineTo(offsetX, offsetY);
       context.stroke();
 
-      socket.emit("drawing", {
-        boardId, // IMPORTANT: Include the boardId in every event!
-        x0: lastPosition.current.x,
-        y0: lastPosition.current.y,
-        x1: offsetX,
-        y1: offsetY,
-        color,
-        width,
-        mode,
-      });
+      if (socket) {
+        socket.emit("drawing", {
+          boardId,
+          x0: lastPosition.current.x,
+          y0: lastPosition.current.y,
+          x1: offsetX,
+          y1: offsetY,
+          color,
+          width,
+          mode,
+        });
+      }
 
       lastPosition.current = { x: offsetX, y: offsetY };
     };
@@ -130,6 +158,9 @@ const Whiteboard = forwardRef(
         onMouseUp={stopDrawing}
         onMouseMove={draw}
         onMouseOut={stopDrawing}
+        onTouchStart={startDrawing}
+        onTouchEnd={stopDrawing}
+        onTouchMove={draw}
         ref={canvasRef}
       />
     );
