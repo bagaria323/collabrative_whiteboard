@@ -1,3 +1,5 @@
+// client/src/Whiteboard.jsx
+
 import React, {
   useRef,
   useEffect,
@@ -7,15 +9,11 @@ import React, {
 } from "react";
 import "./Whiteboard.css";
 
-
-import io from "socket.io-client";
-
-
-const serverUrl = import.meta.env.VITE_SERVER_URL;
-const socket = io(serverUrl);
+// REMOVED the duplicate 'io' import and socket connection from this file.
 
 const Whiteboard = forwardRef(
-  ({ boardId, color, width, mode, eraserColor }, ref) => {
+  ({ socket, boardId, color, width, mode, eraserColor }, ref) => {
+    // Now correctly using the 'socket' prop
     const canvasRef = useRef(null);
     const contextRef = useRef(null);
     const [isDrawing, setIsDrawing] = useState(false);
@@ -31,8 +29,11 @@ const Whiteboard = forwardRef(
     }));
 
     useEffect(() => {
+      // Guard clause to ensure socket is ready before setting up listeners
+      if (!socket) return;
+
       const canvas = canvasRef.current;
-      const context = canvas.getContext("2d");
+      const context = canvas.getContext("2d", { willReadFrequently: true });
       contextRef.current = context;
 
       const resizeCanvas = () => {
@@ -85,7 +86,7 @@ const Whiteboard = forwardRef(
         socket.off("drawing");
         socket.off("load-history");
       };
-    }, [eraserColor]);
+    }, [socket, eraserColor]); // Added 'socket' to the dependency array
 
     const getCoordinates = (event) => {
       const canvas = canvasRef.current;
@@ -129,16 +130,19 @@ const Whiteboard = forwardRef(
       context.lineTo(offsetX, offsetY);
       context.stroke();
 
-      socket.emit("drawing", {
-        boardId,
-        x0: lastPosition.current.x,
-        y0: lastPosition.current.y,
-        x1: offsetX,
-        y1: offsetY,
-        color,
-        width,
-        mode,
-      });
+      // Ensure we only emit if the socket is valid
+      if (socket) {
+        socket.emit("drawing", {
+          boardId,
+          x0: lastPosition.current.x,
+          y0: lastPosition.current.y,
+          x1: offsetX,
+          y1: offsetY,
+          color,
+          width,
+          mode,
+        });
+      }
 
       lastPosition.current = { x: offsetX, y: offsetY };
     };

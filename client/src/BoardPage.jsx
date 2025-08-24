@@ -1,3 +1,5 @@
+// client/src/BoardPage.jsx
+
 import React, { useState, useRef, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import io from "socket.io-client";
@@ -9,6 +11,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { FaShareAlt } from "react-icons/fa";
 import "./App.css";
 
+// This is the ONE AND ONLY socket connection for the entire app.
 const serverUrl = import.meta.env.VITE_SERVER_URL;
 const socket = io(serverUrl);
 
@@ -20,7 +23,9 @@ function BoardPage() {
   const whiteboardRef = useRef(null);
 
   useEffect(() => {
-    socket.emit("join-room", boardId);
+    if (socket && boardId) {
+      socket.emit("join-room", boardId);
+    }
   }, [boardId]);
 
   const handleClearCanvas = () => {
@@ -79,7 +84,7 @@ function BoardPage() {
         <div className="whiteboard-area">
           <Whiteboard
             ref={whiteboardRef}
-            socket={socket}
+            socket={socket} // Pass the single socket instance down as a prop
             boardId={boardId}
             color={color}
             width={width}
